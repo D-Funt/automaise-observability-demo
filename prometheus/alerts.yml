@@ -1,0 +1,19 @@
+groups:
+  - name: usecase-alerts
+    rules:
+      - alert: HighUseCaseFailureRate
+        expr: >
+          (
+            sum by (usecase) (rate(usecase_executions_total{status="failure"}[5m]))
+            /
+            sum by (usecase) (rate(usecase_executions_total[5m]))
+          ) > 0.35
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alta tasa de fallo en caso de uso {{ $labels.usecase }}"
+          description: >
+            El caso de uso {{ $labels.usecase }} supera el 35% de fallos
+            en los ultimos 5 minutos. Revisar posible degradacion del modelo
+            o problema de integracion con el canal.
