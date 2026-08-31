@@ -1,19 +1,43 @@
+# NOTE on thresholds: "for" durations and rate() windows here are kept
+# short (1m / 2m) on purpose, so an on-demand incident (see /incident/start
+# in app/main.py) becomes visible within a short demo recording. In a real
+# production setup I would tune these against historical noise -- typically
+# longer windows (5-15m) to avoid alert flapping on normal variance.
 groups:
   - name: usecase-alerts
     rules:
       - alert: HighUseCaseFailureRate
         expr: >
           (
-            sum by (usecase) (rate(usecase_executions_total{status="failure"}[5m]))
+            sum by (usecase) (rate(usecase_executions_total{status="failure"}[2m]))
             /
-            sum by (usecase) (rate(usecase_executions_total[5m]))
+            sum by (usecase) (rate(usecase_executions_total[2m]))
           ) > 0.35
-        for: 2m
+        for: 1m
         labels:
           severity: warning
         annotations:
           summary: "High failure rate on use case {{ $labels.usecase }}"
           description: >
             Use case {{ $labels.usecase }} has exceeded a 35% failure rate
-            over the last 5 minutes. Check for possible model degradation
+            over the last 2 minutes. Check for possible model degradation
             or a channel integration issue.
+
+      - alert: HighCustomerFailureRate
+        expr: >
+          (
+            sum by (customer) (rate(usecase_executions_total{status="failure"}[2m]))
+            /
+            sum by (customer) (rate(usecase_executions_total[2m]))
+          ) > 0.30
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Degraded experience for {{ $labels.customer }}"
+          description: >
+            {{ $labels.customer }} has exceeded a 30% overall failure rate
+            over the last 2 minutes across their use cases. This looks like
+            a customer-impacting incident rather than an isolated blip --
+            worth checking whether it's isolated to one use case/channel or
+            platform-wide.

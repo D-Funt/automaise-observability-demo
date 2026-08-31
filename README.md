@@ -3,7 +3,7 @@
 Personal practice project, built to explore what an observability stack
 (**Prometheus + Grafana**) would look like when applied to a specific
 domain: monitoring **use case execution on an AI Customer Service
-platform**.
+platform**, across multiple customers.
 
 > ⚠️ This project is my own simulation with randomly generated data.
 > It does not use or represent data, code, or intellectual property
@@ -16,17 +16,39 @@ platform**.
 I wanted to practice an observability stack that wasn't a generic
 "CPU and memory" tutorial, but one focused on the kind of business
 metrics that matter to an Operations team at an AI platform: success
-rate per use case, automatic resolution vs. escalation to a human
-agent, and latency per channel (voice, chat, email, WhatsApp).
+rate per use case and per customer, automatic resolution vs.
+escalation to a human agent, and latency per channel (voice, chat,
+email, WhatsApp).
+
+## Architecture
+
+```
+   Python app (FastAPI)
+   simulates use case executions
+   for 3 customers x 5 use cases
+             │
+             │  exposes /metrics
+             ▼
+        Prometheus
+   (scrapes every 5s, evaluates
+    alert rules every 5s)
+             │
+             ▼
+         Grafana
+  (9-panel dashboard, auto-
+   provisioned on startup)
+```
 
 ## Stack
 
 - **FastAPI** — simulates the continuous execution of AI "use cases"
-  (e.g. balance inquiry, password reset, billing complaint), with
-  different success rates and latencies per channel
-- **Prometheus** — scrapes the metrics exposed by the app every 5s
-- **Grafana** — dashboard with 6 panels + 1 configured alert,
-  auto-provisioned (no need to configure it by hand)
+  (e.g. balance inquiry, password reset, billing complaint) across
+  3 simulated customers, with different success rates and latencies
+  per channel
+- **Prometheus** — scrapes the metrics exposed by the app every 5s,
+  evaluates 2 alert rules
+- **Grafana** — dashboard with 9 panels, auto-provisioned (no need
+  to configure it by hand)
 
 ## How to run it
 
@@ -46,22 +68,94 @@ Grafana starts.
 
 1. Overall use case execution success rate
 2. Executions per channel over time
-3. Automatic resolution rate per use case
+3. Automatic resolution rate per use case / customer
 4. Top 5 use cases with the most failures
 5. p95 latency per channel
 6. Distribution of reasons for escalation to a human agent
+7. Total executions in the last 5 minutes
+8. **Success rate by customer** — the same idea as panel 1, broken
+   down per customer, closer to what "analyze use case success
+   metrics" looks like in practice when you support several accounts
+9. **p95 latency by customer**
 
-## Configured alert
+## Configured alerts
 
-`HighUseCaseFailureRate`: fires when a use case sustains a failure
-rate above 35% for 2 minutes — designed to catch degradation of a
-specific flow before it massively impacts customers.
+- `HighUseCaseFailureRate`: fires when a single use case sustains a
+  failure rate above 35% for 1 minute — catches degradation of a
+  specific flow (e.g. a prompt/model issue on one use case).
+- `HighCustomerFailureRate`: fires when a single customer's overall
+  failure rate goes above 30% for 1 minute — catches something that
+  looks like a customer-impacting incident rather than noise on one
+  use case.
+
+The `for` durations and `rate()` windows (1-2 minutes) are
+intentionally short so an incident is visible within a short demo
+recording. In a real production setup I'd tune these against
+historical noise — typically longer windows (5-15 min) to avoid
+alert flapping.
+
+## Simulating an incident (for the demo)
+
+Instead of waiting for random variance to eventually cross the alert
+threshold, the app exposes a small control surface to trigger a
+controlled degradation on demand:
+
+```bash
+# start a simulated incident: Customer C's billing_complaint flow
+# collapses in success rate and its latency spikes
+curl -X POST localhost:8000/incident/start \
+  -H "Content-Type: application/json" \
+  -d '{"customer": "Customer C", "usecase": "billing_complaint"}'
+
+# check current state
+curl localhost:8000/incident/status
+
+# end the incident, traffic returns to normal
+curl -X POST localhost:8000/incident/stop
+```
+
+The intended flow to walk through, end to end:
+
+1. **Detection** — `HighCustomerFailureRate` fires for Customer C,
+   visible in Prometheus (`/alerts`) and as a degraded panel in
+   Grafana.
+2. **Investigation** — cross-check `HighUseCaseFailureRate`: is it
+   platform-wide or isolated to `billing_complaint`? The per-customer
+   and per-use-case panels answer that directly.
+3. **Customer impact** — the "Success rate by customer" and "p95
+   latency by customer" panels show exactly which customer and how
+   severe.
+4. **Mitigation / root cause** — in a real system, this is where I'd
+   check recent deploys, model/provider status, or a channel
+   integration; here it's simulated, so `/incident/stop` plays the
+   role of "the fix landed."
+5. **Prevention** — the takeaway I'd document afterwards: e.g. add a
+   canary check on `billing_complaint` before wider rollout, or a
+   customer-specific SLO if this keeps recurring for Customer C.
+
+## Scope decisions — what I intentionally left out
+
+To keep this a finishable, well-executed POC rather than a broad,
+shallow one, I deliberately did **not** add:
+
+- LLM-specific metrics (token usage, model latency, model errors) —
+  a natural next layer, but it would have doubled the surface area
+  without changing the core story this demo tells
+- A migration to real Azure-managed services (Azure Monitor managed
+  Prometheus, Azure Managed Grafana, Log Analytics/KQL) — I've
+  mapped this conceptually elsewhere, but wanted this repo to stay
+  something anyone can run locally in one command
+- Kubernetes, Terraform, CI/CD — out of scope for a local POC
+- Alert routing (Slack/email/webhook) — the alert firing in
+  Prometheus/Grafana is enough to demonstrate the detection logic
 
 ## Possible next steps
 
 - Migrate the stack to Azure (Azure Monitor managed Prometheus +
   Azure Managed Grafana) to simulate an environment closer to an
   enterprise production setup
+- Add LLM-specific metrics (tokens, model latency/errors) as a
+  separate layer on top of the use-case-level ones
 - Add a second service to simulate integration latency with an
   external CRM
 - Export alerts to a notification channel (e.g. Slack webhook)

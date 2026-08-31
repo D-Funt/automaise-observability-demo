@@ -3,7 +3,7 @@
   "uid": "automaise-usecases",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
   "panels": [
@@ -29,19 +29,19 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(usecase_executions_total{status=\"success\"}[5m])) / sum(rate(usecase_executions_total[5m]))",
+          "expr": "sum(rate(usecase_executions_total{status=\"success\"}[2m])) / sum(rate(usecase_executions_total[2m]))",
           "refId": "A"
         }
       ]
     },
     {
       "id": 2,
-      "title": "Executions per channel (5m rate)",
+      "title": "Executions per channel (2m rate)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
       "targets": [
         {
-          "expr": "sum by (channel) (rate(usecase_executions_total[5m]))",
+          "expr": "sum by (channel) (rate(usecase_executions_total[2m]))",
           "legendFormat": "{{channel}}",
           "refId": "A"
         }
@@ -49,13 +49,13 @@
     },
     {
       "id": 3,
-      "title": "Automatic resolution vs escalation (by use case)",
+      "title": "Automatic resolution vs escalation (by use case / customer)",
       "type": "barchart",
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
       "targets": [
         {
           "expr": "usecase_auto_resolution_rate",
-          "legendFormat": "{{usecase}}",
+          "legendFormat": "{{usecase}} · {{customer}}",
           "refId": "A"
         }
       ]
@@ -67,7 +67,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "topk(5, sum by (usecase) (rate(usecase_executions_total{status=\"failure\"}[5m])))",
+          "expr": "topk(5, sum by (usecase) (rate(usecase_executions_total{status=\"failure\"}[2m])))",
           "legendFormat": "{{usecase}}",
           "refId": "A"
         }
@@ -81,7 +81,7 @@
       "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, channel) (rate(usecase_execution_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le, channel) (rate(usecase_execution_duration_seconds_bucket[2m])))",
           "legendFormat": "{{channel}}",
           "refId": "A"
         }
@@ -89,12 +89,12 @@
     },
     {
       "id": 6,
-      "title": "Escalations to human agent (by reason)",
+      "title": "Escalations to human agent (by reason, 5m)",
       "type": "piechart",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "sum by (reason) (increase(usecase_escalations_total[15m]))",
+          "expr": "sum by (reason) (increase(usecase_escalations_total[5m]))",
           "legendFormat": "{{reason}}",
           "refId": "A"
         }
@@ -102,12 +102,55 @@
     },
     {
       "id": 7,
-      "title": "Total executions (15m)",
+      "title": "Total executions (5m)",
       "type": "stat",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
-          "expr": "sum(increase(usecase_executions_total[15m]))",
+          "expr": "sum(increase(usecase_executions_total[5m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Success rate by customer (2m)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        }
+      },
+      "options": { "displayMode": "gradient", "orientation": "horizontal" },
+      "targets": [
+        {
+          "expr": "sum by (customer) (rate(usecase_executions_total{status=\"success\"}[2m])) / sum by (customer) (rate(usecase_executions_total[2m]))",
+          "legendFormat": "{{customer}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "p95 latency by customer",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, customer) (rate(usecase_execution_duration_seconds_bucket[2m])))",
+          "legendFormat": "{{customer}}",
           "refId": "A"
         }
       ]
