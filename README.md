@@ -1,34 +1,34 @@
 # AI Use Case Observability Demo
 
-Proyecto personal de práctica, construido para explorar cómo se vería un
-stack de observabilidad (**Prometheus + Grafana**) aplicado a un dominio
-específico: el monitoreo de **ejecución de casos de uso de una plataforma
-de AI Customer Service**.
+Personal practice project, built to explore what an observability stack
+(**Prometheus + Grafana**) would look like when applied to a specific
+domain: monitoring **use case execution on an AI Customer Service
+platform**.
 
-> ⚠️ Este proyecto es una simulación propia con datos generados
-> aleatoriamente. No usa ni representa datos, código o propiedad
-> intelectual de ninguna empresa real. Las métricas fueron diseñadas
-> inspirándome en información pública sobre el tipo de trabajo que hace
-> un equipo de Operations en plataformas de AI para atención al cliente.
+> ⚠️ This project is my own simulation with randomly generated data.
+> It does not use or represent data, code, or intellectual property
+> from any real company. The metrics were designed drawing inspiration
+> from public information about the kind of work an Operations team
+> does at an AI platform for customer service.
 
-## Por qué este proyecto
+## Why this project
 
-Quería practicar un stack de observabilidad que no fuera un tutorial
-genérico de "CPU y memoria", sino uno enfocado en el tipo de métricas de
-negocio que le importan a un equipo de Operations de una plataforma de
-IA: tasa de éxito por caso de uso, resolución automática vs escalado a
-un agente humano, y latencia por canal (voz, chat, email, WhatsApp).
+I wanted to practice an observability stack that wasn't a generic
+"CPU and memory" tutorial, but one focused on the kind of business
+metrics that matter to an Operations team at an AI platform: success
+rate per use case, automatic resolution vs. escalation to a human
+agent, and latency per channel (voice, chat, email, WhatsApp).
 
 ## Stack
 
-- **FastAPI** — simula la ejecución continua de "casos de uso" de IA
-  (ej. consulta de saldo, reset de password, reclamo de facturación),
-  con distintas tasas de éxito y latencias por canal
-- **Prometheus** — scrapea las métricas expuestas por la app cada 5s
-- **Grafana** — dashboard con 6 paneles + 1 alerta configurada,
-  auto-provisionado (no hace falta configurarlo a mano)
+- **FastAPI** — simulates the continuous execution of AI "use cases"
+  (e.g. balance inquiry, password reset, billing complaint), with
+  different success rates and latencies per channel
+- **Prometheus** — scrapes the metrics exposed by the app every 5s
+- **Grafana** — dashboard with 6 panels + 1 configured alert,
+  auto-provisioned (no need to configure it by hand)
 
-## Cómo correrlo
+## How to run it
 
 ```bash
 docker compose up --build
@@ -36,32 +36,32 @@ docker compose up --build
 
 - App: http://localhost:8000/metrics
 - Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (usuario: admin / contraseña: admin,
-  o entrar directo como Viewer anónimo)
+- Grafana: http://localhost:3000 (user: admin / password: admin,
+  or go straight in as an anonymous Viewer)
 
-El dashboard "AI Use Cases - Operations Dashboard" se carga solo al
-iniciar Grafana.
+The "AI Use Cases - Operations Dashboard" loads automatically when
+Grafana starts.
 
-## Qué muestra el dashboard
+## What the dashboard shows
 
-1. Tasa de éxito global de ejecución de casos de uso
-2. Ejecuciones por canal en el tiempo
-3. Tasa de resolución automática por caso de uso
-4. Top 5 casos de uso con más fallos
-5. Latencia p95 por canal
-6. Distribución de motivos de escalado a agente humano
+1. Overall use case execution success rate
+2. Executions per channel over time
+3. Automatic resolution rate per use case
+4. Top 5 use cases with the most failures
+5. p95 latency per channel
+6. Distribution of reasons for escalation to a human agent
 
-## Alerta configurada
+## Configured alert
 
-`HighUseCaseFailureRate`: se dispara si un caso de uso supera 35% de
-fallos sostenido durante 2 minutos — pensado para detectar degradación
-de un flujo específico antes de que impacte masivamente a clientes.
+`HighUseCaseFailureRate`: fires when a use case sustains a failure
+rate above 35% for 2 minutes — designed to catch degradation of a
+specific flow before it massively impacts customers.
 
-## Posibles próximos pasos
+## Possible next steps
 
-- Migrar el stack a Azure (Azure Monitor managed Prometheus + Azure
-  Managed Grafana) para simular un entorno más cercano a producción
-  enterprise
-- Agregar un segundo servicio para simular latencia de integración con
-  un CRM externo
-- Exportar alertas hacia un canal de notificación (ej. webhook a Slack)
+- Migrate the stack to Azure (Azure Monitor managed Prometheus +
+  Azure Managed Grafana) to simulate an environment closer to an
+  enterprise production setup
+- Add a second service to simulate integration latency with an
+  external CRM
+- Export alerts to a notification channel (e.g. Slack webhook)

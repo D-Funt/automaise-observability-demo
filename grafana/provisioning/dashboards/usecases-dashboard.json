@@ -9,7 +9,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Tasa de exito global",
+      "title": "Overall success rate",
       "type": "gauge",
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
       "fieldConfig": {
@@ -36,7 +36,7 @@
     },
     {
       "id": 2,
-      "title": "Ejecuciones por canal (5m rate)",
+      "title": "Executions per channel (5m rate)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
       "targets": [
@@ -49,7 +49,7 @@
     },
     {
       "id": 3,
-      "title": "Resolucion automatica vs escalado (por caso de uso)",
+      "title": "Automatic resolution vs escalation (by use case)",
       "type": "barchart",
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
       "targets": [
@@ -62,7 +62,7 @@
     },
     {
       "id": 4,
-      "title": "Top casos de uso con mas fallos",
+      "title": "Top use cases with most failures",
       "type": "barchart",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
@@ -75,7 +75,7 @@
     },
     {
       "id": 5,
-      "title": "Latencia p95 por canal",
+      "title": "p95 latency per channel",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "fieldConfig": { "defaults": { "unit": "s" } },
@@ -89,7 +89,7 @@
     },
     {
       "id": 6,
-      "title": "Escalados a agente humano (por motivo)",
+      "title": "Escalations to human agent (by reason)",
       "type": "piechart",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
@@ -102,7 +102,7 @@
     },
     {
       "id": 7,
-      "title": "Total de ejecuciones (15m)",
+      "title": "Total executions (15m)",
       "type": "stat",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [

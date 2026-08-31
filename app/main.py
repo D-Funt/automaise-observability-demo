@@ -1,16 +1,16 @@
 """
-Simulador de plataforma de AI Customer Service (estilo AUTOMAISE)
+AI Customer Service platform simulator (AUTOMAISE-style)
 ------------------------------------------------------------------
-Este servicio NO es un producto real de AUTOMAISE. Es una simulacion
-propia, construida para practicar observabilidad (Prometheus + Grafana)
-sobre el tipo de metricas que un Operations Engineer en AUTOMAISE
-tendria que monitorear: ejecucion de casos de uso de IA, resolucion
-automatica vs escalado a agente humano, y latencia por canal.
+This service is NOT a real AUTOMAISE product. It is my own
+simulation, built to practice observability (Prometheus + Grafana)
+on the kind of metrics an Operations Engineer at AUTOMAISE would
+have to monitor: execution of AI use cases, automatic resolution vs.
+escalation to a human agent, and latency per channel.
 
-Expone:
-- GET /metrics       -> metricas en formato Prometheus
-- POST /simulate      -> dispara una ejecucion simulada (o se ejecuta sola via background loop)
-- GET /health         -> healthcheck simple
+Exposes:
+- GET /metrics       -> metrics in Prometheus format
+- POST /simulate      -> triggers a simulated execution (or it runs on its own via a background loop)
+- GET /health         -> simple healthcheck
 """
 
 import random
@@ -30,72 +30,72 @@ from prometheus_client import (
 app = FastAPI(title="Automaise-style Use Case Simulator")
 
 # ---------------------------------------------------------------------------
-# Definicion de metricas Prometheus
+# Prometheus metric definitions
 # ---------------------------------------------------------------------------
 
 USECASE_EXECUTIONS = Counter(
     "usecase_executions_total",
-    "Total de ejecuciones de casos de uso",
+    "Total use case executions",
     ["usecase", "channel", "status"],
 )
 
 USECASE_DURATION = Histogram(
     "usecase_execution_duration_seconds",
-    "Duracion de la ejecucion de un caso de uso",
+    "Duration of a use case execution",
     ["usecase", "channel"],
     buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10, 20),
 )
 
 USECASE_ESCALATIONS = Counter(
     "usecase_escalations_total",
-    "Casos escalados a agente humano",
+    "Cases escalated to a human agent",
     ["usecase", "reason"],
 )
 
 AUTO_RESOLUTION_RATE = Gauge(
     "usecase_auto_resolution_rate",
-    "Tasa de resolucion automatica (0-1) por caso de uso, ventana movil",
+    "Automatic resolution rate (0-1) per use case, rolling window",
     ["usecase"],
 )
 
 # ---------------------------------------------------------------------------
-# Definicion de "casos de uso" simulados, inspirados en el lenguaje
-# publico de AUTOMAISE (Conversational AI / Agent Assist / AI Workflows)
+# Definition of simulated "use cases", inspired by AUTOMAISE's public
+# language (Conversational AI / Agent Assist / AI Workflows)
 # ---------------------------------------------------------------------------
 
 USE_CASES = {
-    # nombre_caso: (prob_exito_base, canales_posibles)
-    "consulta_saldo": (0.93, ["chat", "whatsapp", "voice"]),
-    "reset_password": (0.90, ["chat", "email"]),
-    "reclamo_facturacion": (0.55, ["voice", "chat", "email"]),
-    "cambio_plan": (0.70, ["chat", "whatsapp"]),
-    "soporte_tecnico_nivel1": (0.65, ["voice", "chat"]),
+    # case_name: (base_success_prob, possible_channels)
+    "balance_inquiry": (0.93, ["chat", "whatsapp", "voice"]),
+    "password_reset": (0.90, ["chat", "email"]),
+    "billing_complaint": (0.55, ["voice", "chat", "email"]),
+    "plan_change": (0.70, ["chat", "whatsapp"]),
+    "tier1_tech_support": (0.65, ["voice", "chat"]),
 }
 
 ESCALATION_REASONS = [
-    "baja_confianza_modelo",
-    "intencion_no_reconocida",
-    "cliente_solicito_agente",
-    "caso_fuera_de_alcance",
+    "low_model_confidence",
+    "intent_not_recognized",
+    "customer_requested_agent",
+    "case_out_of_scope",
 ]
 
-# Ventanas moviles simples para calcular auto_resolution_rate en memoria
+# Simple rolling windows to compute auto_resolution_rate in memory
 _window = {uc: [] for uc in USE_CASES}
 _window_lock = threading.Lock()
 WINDOW_SIZE = 50
 
 
 def simulate_one_execution():
-    """Simula una ejecucion de caso de uso y actualiza las metricas."""
+    """Simulates a use case execution and updates the metrics."""
     usecase = random.choice(list(USE_CASES.keys()))
     base_success_prob, channels = USE_CASES[usecase]
     channel = random.choice(channels)
 
-    # Un poco de variacion temporal para que los graficos no sean planos
+    # A bit of temporal variation so the charts aren't flat
     success_prob = max(0.05, min(0.99, base_success_prob + random.uniform(-0.08, 0.05)))
     success = random.random() < success_prob
 
-    # Latencia simulada: voz tiende a tardar mas que chat/email
+    # Simulated latency: voice tends to take longer than chat/email
     base_latency = {"voice": 2.5, "chat": 0.8, "email": 1.5, "whatsapp": 1.0}[channel]
     duration = max(0.05, random.gauss(base_latency, base_latency * 0.35))
 
@@ -119,7 +119,7 @@ def simulate_one_execution():
 
 
 def background_traffic_loop():
-    """Genera trafico simulado continuo, como si fuera produccion real."""
+    """Generates continuous simulated traffic, as if it were real production."""
     while True:
         simulate_one_execution()
         time.sleep(random.uniform(0.2, 0.8))
@@ -138,7 +138,7 @@ def health():
 
 @app.post("/simulate")
 def simulate():
-    """Dispara manualmente una ejecucion (util para pruebas puntuales)."""
+    """Manually triggers an execution (useful for one-off tests)."""
     result = simulate_one_execution()
     return result
 

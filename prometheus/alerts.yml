@@ -12,8 +12,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Alta tasa de fallo en caso de uso {{ $labels.usecase }}"
+          summary: "High failure rate on use case {{ $labels.usecase }}"
           description: >
-            El caso de uso {{ $labels.usecase }} supera el 35% de fallos
-            en los ultimos 5 minutos. Revisar posible degradacion del modelo
-            o problema de integracion con el canal.
+            Use case {{ $labels.usecase }} has exceeded a 35% failure rate
+            over the last 5 minutes. Check for possible model degradation
+            or a channel integration issue.
