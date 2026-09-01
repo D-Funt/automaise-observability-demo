@@ -74,11 +74,11 @@ AUTO_RESOLUTION_RATE = Gauge(
 
 USE_CASES = {
     # case_name: (base_success_prob, possible_channels)
-    "balance_inquiry": (0.93, ["chat", "whatsapp", "voice"]),
-    "password_reset": (0.90, ["chat", "email"]),
-    "billing_complaint": (0.55, ["voice", "chat", "email"]),
-    "plan_change": (0.70, ["chat", "whatsapp"]),
-    "tier1_tech_support": (0.65, ["voice", "chat"]),
+    "balance_inquiry": (0.98, ["chat", "whatsapp", "voice"]),
+    "password_reset": (0.97, ["chat", "email"]),
+    "billing_complaint": (0.85, ["voice", "chat", "email"]),
+    "plan_change": (0.95, ["chat", "whatsapp"]),
+    "tier1_tech_support": (0.90, ["voice", "chat"]),
 }
 
 ESCALATION_REASONS = [
@@ -87,6 +87,9 @@ ESCALATION_REASONS = [
     "customer_requested_agent",
     "case_out_of_scope",
 ]
+# Relative weights (not required to sum to 100) -- low model confidence is
+# by far the most common reason to escalate, case_out_of_scope the rarest.
+ESCALATION_WEIGHTS = [45, 30, 18, 7]
 
 # Simulated customers on the platform. "health_multiplier" is a small,
 # permanent per-customer factor (e.g. a newer/smaller deployment tends
@@ -162,11 +165,11 @@ def simulate_one_execution():
         )
     if incident_active:
         # Simulated degradation: success rate collapses, latency spikes
-        success_prob *= 0.25
-        latency_multiplier = 3.5
+        success_prob *= 0.1
+        latency_multiplier = 4
 
     # A bit of temporal variation so the charts aren't flat
-    success_prob = max(0.03, min(0.99, success_prob + random.uniform(-0.05, 0.05)))
+    success_prob = max(0.03, min(0.99, success_prob + random.uniform(-0.03, 0.03)))
     success = random.random() < success_prob
 
     # Simulated latency: voice tends to take longer than chat/email
@@ -179,7 +182,7 @@ def simulate_one_execution():
     USECASE_DURATION.labels(usecase=usecase, channel=channel, customer=customer).observe(duration)
 
     if not success:
-        reason = random.choice(ESCALATION_REASONS)
+        reason = random.choices(ESCALATION_REASONS, weights=ESCALATION_WEIGHTS, k=1)[0]
         USECASE_ESCALATIONS.labels(usecase=usecase, reason=reason, customer=customer).inc()
 
     with _window_lock:
