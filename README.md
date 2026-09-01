@@ -102,17 +102,35 @@ controlled degradation on demand:
 
 ```bash
 # start a simulated incident: Customer C's billing_complaint flow
-# collapses in success rate and its latency spikes
+# collapses in success rate and its latency spikes, across ALL of that
+# usecase's channels (voice, chat, email)
 curl -X POST localhost:8000/incident/start \
   -H "Content-Type: application/json" \
   -d '{"customer": "Customer C", "usecase": "billing_complaint"}'
 
-# check current state
+# same incident, but scoped to a single channel (voice only) -- chat
+# and email keep working normally for that customer/usecase
+curl -X POST localhost:8000/incident/start \
+  -H "Content-Type: application/json" \
+  -d '{"customer": "Customer C", "usecase": "billing_complaint", "channels": ["voice"]}'
+
+# or scoped to several channels at once
+curl -X POST localhost:8000/incident/start \
+  -H "Content-Type: application/json" \
+  -d '{"customer": "Customer C", "usecase": "billing_complaint", "channels": ["voice", "chat"]}'
+
+# check current state (includes which channels, if any, are affected)
 curl localhost:8000/incident/status
 
 # end the incident, traffic returns to normal
 curl -X POST localhost:8000/incident/stop
 ```
+
+`channels` is optional -- omit it (or send an empty list) to affect
+every channel of that usecase, same behaviour as before. Each channel
+must be one of the ones that usecase actually uses (e.g. `billing_complaint`
+only runs over `voice`, `chat`, `email` -- not `whatsapp`); the endpoint
+returns an error naming the valid options otherwise.
 
 The intended flow to walk through, end to end:
 

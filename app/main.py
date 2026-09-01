@@ -105,7 +105,7 @@ CUSTOMERS = {
 # keyed by (customer, usecase)
 _window = {(customer, uc): [] for customer in CUSTOMERS for uc in USE_CASES}
 _window_lock = threading.Lock()
-WINDOW_SIZE = 50
+WINDOW_SIZE = 80
 
 # ---------------------------------------------------------------------------
 # Incident simulation
@@ -115,12 +115,16 @@ WINDOW_SIZE = 50
 # random variance to eventually cross the alert threshold.
 
 _incident_lock = threading.Lock()
-_incident = {"active": False, "customer": None, "usecase": None}
+_incident = {"active": False, "customer": None, "usecase": None, "channels": None}
 
 
 class IncidentRequest(BaseModel):
     customer: str = "Customer C"
     usecase: str = "billing_complaint"
+    # Optional: restrict the incident to one or several channels (e.g.
+    # ["voice"] or ["voice", "chat"]). If omitted (None) or empty, the
+    # incident affects ALL channels of that usecase, same as before.
+    channels: list[str] | None = None
 
 
 @app.post("/incident/start")
@@ -129,15 +133,26 @@ def start_incident(req: IncidentRequest):
         return {"error": f"unknown customer, must be one of {list(CUSTOMERS)}"}
     if req.usecase not in USE_CASES:
         return {"error": f"unknown usecase, must be one of {list(USE_CASES)}"}
+
+    valid_channels = USE_CASES[req.usecase][1]
+    channels = req.channels or None
+    if channels:
+        unknown = [c for c in channels if c not in valid_channels]
+        if unknown:
+            return {
+                "error": f"unknown channel(s) {unknown} for usecase '{req.usecase}', "
+                         f"must be a subset of {valid_channels}"
+            }
+
     with _incident_lock:
-        _incident.update(active=True, customer=req.customer, usecase=req.usecase)
+        _incident.update(active=True, customer=req.customer, usecase=req.usecase, channels=channels)
     return {"status": "incident started", **_incident}
 
 
 @app.post("/incident/stop")
 def stop_incident():
     with _incident_lock:
-        _incident.update(active=False, customer=None, usecase=None)
+        _incident.update(active=False, customer=None, usecase=None, channels=None)
     return {"status": "incident stopped"}
 
 
@@ -162,6 +177,7 @@ def simulate_one_execution():
             _incident["active"]
             and _incident["customer"] == customer
             and _incident["usecase"] == usecase
+            and (not _incident["channels"] or channel in _incident["channels"])
         )
     if incident_active:
         # Simulated degradation: success rate collapses, latency spikes
@@ -206,7 +222,7 @@ def background_traffic_loop():
     """Generates continuous simulated traffic, as if it were real production."""
     while True:
         simulate_one_execution()
-        time.sleep(random.uniform(0.15, 0.5))
+        time.sleep(random.uniform(0.05, 0.12))
 
 
 @app.on_event("startup")
