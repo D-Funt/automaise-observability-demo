@@ -68,8 +68,9 @@ Grafana starts.
 
 1. Overall use case execution success rate
 2. Executions per channel over time
-3. Automatic resolution rate per use case / customer
-4. Top 5 use cases with the most failures
+3. Automatic resolution rate — by use case & customer
+4. Failure rate — by use case & customer (normalized ratio, not raw
+   counts, so it stays readable as traffic accumulates)
 5. p95 latency per channel
 6. Distribution of reasons for escalation to a human agent
 7. Total executions in the last 5 minutes
@@ -134,12 +135,18 @@ returns an error naming the valid options otherwise.
 
 The intended flow to walk through, end to end:
 
-1. **Detection** — `HighCustomerFailureRate` fires for Customer C,
-   visible in Prometheus (`/alerts`) and as a degraded panel in
-   Grafana.
-2. **Investigation** — cross-check `HighUseCaseFailureRate`: is it
-   platform-wide or isolated to `billing_complaint`? The per-customer
-   and per-use-case panels answer that directly.
+1. **Detection** — `HighUseCaseFailureRate` fires for
+   `billing_complaint`, visible in Prometheus (`/alerts`) and as a
+   degraded panel in Grafana. `HighCustomerFailureRate` intentionally
+   does **not** fire from this single-usecase incident: it aggregates
+   across all 5 of Customer C's use cases, so one degraded flow out
+   of five dilutes the blended failure rate to roughly ~25-28%, just
+   under its 30% threshold. That's by design, not a bug — it's a
+   two-tier alert: isolated-flow issues vs. customer-wide incidents.
+2. **Investigation** — check whether it's isolated to one use case or
+   spreading: the per-use-case and per-customer panels answer that
+   directly, and `HighCustomerFailureRate` would fire on its own if
+   the degradation spread to more of Customer C's use cases.
 3. **Customer impact** — the "Success rate by customer" and "p95
    latency by customer" panels show exactly which customer and how
    severe.
