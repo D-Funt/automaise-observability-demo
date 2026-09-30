@@ -24,8 +24,9 @@ Exposes:
 import random
 import time
 import threading
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 from prometheus_client import (
@@ -36,7 +37,14 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
 )
 
-app = FastAPI(title="Automaise-style Use Case Simulator")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    thread = threading.Thread(target=background_traffic_loop, daemon=True)
+    thread.start()
+    yield
+
+
+app = FastAPI(title="Automaise-style Use Case Simulator", lifespan=lifespan)
 
 # ---------------------------------------------------------------------------
 # Prometheus metric definitions
@@ -130,19 +138,16 @@ class IncidentRequest(BaseModel):
 @app.post("/incident/start")
 def start_incident(req: IncidentRequest):
     if req.customer not in CUSTOMERS:
-        return {"error": f"unknown customer, must be one of {list(CUSTOMERS)}"}
+        raise HTTPException(status_code=422, detail=f"unknown customer, must be one of {list(CUSTOMERS)}")
     if req.usecase not in USE_CASES:
-        return {"error": f"unknown usecase, must be one of {list(USE_CASES)}"}
+        raise HTTPException(status_code=422, detail=f"unknown usecase, must be one of {list(USE_CASES)}")
 
     valid_channels = USE_CASES[req.usecase][1]
     channels = req.channels or None
     if channels:
         unknown = [c for c in channels if c not in valid_channels]
         if unknown:
-            return {
-                "error": f"unknown channel(s) {unknown} for usecase '{req.usecase}', "
-                         f"must be a subset of {valid_channels}"
-            }
+            raise HTTPException(status_code=422, detail=f"unknown channel(s) {unknown} for usecase '{req.usecase}', must be a subset of {valid_channels}")
 
     with _incident_lock:
         _incident.update(active=True, customer=req.customer, usecase=req.usecase, channels=channels)
@@ -223,12 +228,6 @@ def background_traffic_loop():
     while True:
         simulate_one_execution()
         time.sleep(random.uniform(0.05, 0.12))
-
-
-@app.on_event("startup")
-def start_background_loop():
-    thread = threading.Thread(target=background_traffic_loop, daemon=True)
-    thread.start()
 
 
 @app.get("/health")
