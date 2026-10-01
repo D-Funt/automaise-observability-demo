@@ -22,20 +22,21 @@ Exposes:
 """
 
 import random
-import time
 import threading
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
-from pydantic import BaseModel
 from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
     CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
 )
+from pydantic import BaseModel
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -138,19 +139,29 @@ class IncidentRequest(BaseModel):
 @app.post("/incident/start")
 def start_incident(req: IncidentRequest):
     if req.customer not in CUSTOMERS:
-        raise HTTPException(status_code=422, detail=f"unknown customer, must be one of {list(CUSTOMERS)}")
+        raise HTTPException(
+            status_code=422,
+            detail=f"unknown customer, must be one of {list(CUSTOMERS)}",
+        )
     if req.usecase not in USE_CASES:
-        raise HTTPException(status_code=422, detail=f"unknown usecase, must be one of {list(USE_CASES)}")
+        raise HTTPException(
+            status_code=422, detail=f"unknown usecase, must be one of {list(USE_CASES)}"
+        )
 
     valid_channels = USE_CASES[req.usecase][1]
     channels = req.channels or None
     if channels:
         unknown = [c for c in channels if c not in valid_channels]
         if unknown:
-            raise HTTPException(status_code=422, detail=f"unknown channel(s) {unknown} for usecase '{req.usecase}', must be a subset of {valid_channels}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"unknown channel(s) {unknown} for usecase '{req.usecase}', must be a subset of {valid_channels}",
+            )
 
     with _incident_lock:
-        _incident.update(active=True, customer=req.customer, usecase=req.usecase, channels=channels)
+        _incident.update(
+            active=True, customer=req.customer, usecase=req.usecase, channels=channels
+        )
     return {"status": "incident started", **_incident}
 
 
@@ -199,12 +210,18 @@ def simulate_one_execution():
     duration = max(0.05, random.gauss(base_latency, base_latency * 0.35))
 
     status = "success" if success else "failure"
-    USECASE_EXECUTIONS.labels(usecase=usecase, channel=channel, status=status, customer=customer).inc()
-    USECASE_DURATION.labels(usecase=usecase, channel=channel, customer=customer).observe(duration)
+    USECASE_EXECUTIONS.labels(
+        usecase=usecase, channel=channel, status=status, customer=customer
+    ).inc()
+    USECASE_DURATION.labels(
+        usecase=usecase, channel=channel, customer=customer
+    ).observe(duration)
 
     if not success:
         reason = random.choices(ESCALATION_REASONS, weights=ESCALATION_WEIGHTS, k=1)[0]
-        USECASE_ESCALATIONS.labels(usecase=usecase, reason=reason, customer=customer).inc()
+        USECASE_ESCALATIONS.labels(
+            usecase=usecase, reason=reason, customer=customer
+        ).inc()
 
     with _window_lock:
         window = _window[(customer, usecase)]
@@ -212,7 +229,9 @@ def simulate_one_execution():
         if len(window) > WINDOW_SIZE:
             window.pop(0)
         if window:
-            AUTO_RESOLUTION_RATE.labels(usecase=usecase, customer=customer).set(sum(window) / len(window))
+            AUTO_RESOLUTION_RATE.labels(usecase=usecase, customer=customer).set(
+                sum(window) / len(window)
+            )
 
     return {
         "customer": customer,
